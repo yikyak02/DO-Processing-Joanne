@@ -1,9 +1,10 @@
-"""Copy unmerged DOs whose date matches the current date into a `same_day` folder.
+"""Move unmerged DOs whose date matches the current date into a `same_day` folder.
 
 Each DO PDF carries a single date field rendered as `Date DD/MM/YYYY`
 (also tolerant of `.` or `-` separators). We read that date from the
-embedded text layer and, if it equals today's date, copy the file into
-output/unmerged_do/same_day.
+embedded text layer and, if it equals today's date, move the file into
+output/unmerged_do/same_day — the original is removed so there are no
+duplicates left in the source folder.
 """
 
 from __future__ import annotations
@@ -75,7 +76,7 @@ def main() -> int:
 
     print(f"Matching DOs dated {target.strftime('%d/%m/%Y')} in {args.do_dir} ...\n")
 
-    copied = 0
+    moved = 0
     scanned = 0
     for pdf in sorted(args.do_dir.glob("*.pdf")):
         scanned += 1
@@ -83,13 +84,13 @@ def main() -> int:
         shown = do_date.strftime("%d/%m/%Y") if do_date else "no date found"
 
         if do_date == target:
-            shutil.copy2(pdf, same_day_dir / pdf.name)
-            copied += 1
+            shutil.move(str(pdf), str(same_day_dir / pdf.name))
+            moved += 1
             print(f"  MATCH  {pdf.name}  ({shown})  -> same_day/")
         else:
             print(f"  skip   {pdf.name}  ({shown})")
 
-    print(f"\nScanned {scanned} DO(s); copied {copied} to {same_day_dir}.")
+    print(f"\nScanned {scanned} DO(s); moved {moved} to {same_day_dir}.")
     return 0
 
 
