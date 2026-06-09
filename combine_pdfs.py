@@ -34,6 +34,7 @@ DATE_RE = re.compile(
 COLLECT_TARGETS: list[tuple[str, str]] = [
     ("sinwa", "sinwa"),
     ("francois", "francois"),
+    ("fuji", "fuji"),
 ]
 
 

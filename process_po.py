@@ -23,7 +23,6 @@ INVOICE_FILE_RE = re.compile(r"^Invoice_(\S+)\.pdf$", re.IGNORECASE)
 DO_FILE_RE = re.compile(r"^DO_(\S+)\.pdf$", re.IGNORECASE)
 
 TARGETS = [
-    ("Fuji Trading", ["fuji trading"]),
     ("Con-Lash Supplies", ["con-lash supplies", "con lash supplies"]),
 ]
 
