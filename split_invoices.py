@@ -31,6 +31,15 @@ SOLD_TO_RE = re.compile(
 )
 WRIST_KEYWORD = "wrist far east"
 
+# Folders the Wrist pass is allowed to scan. Matches names like
+# "EXTRACT INVOICE 22 MAY 2026", "0. EXTRACT INVOICE 09062026",
+# "3 - EXTRACT INVOICE 09.06.2026" — i.e. an optional leading prefix
+# (numbering, punctuation, etc.), then "EXTRACT INVOICE", then any
+# day/month/year text. We use re.search (not match) so a leading prefix is
+# allowed. The trailing date portion is captured for logging but not otherwise
+# validated, so the condition stays loose by design.
+EXTRACT_DIR_RE = re.compile(r"EXTRACT\s+INVOICE\b\s*(.*)", re.IGNORECASE)
+
 
 @dataclass
 class PageInfo:
@@ -119,24 +128,47 @@ def split_pdf(input_path: Path, out_dir: Path) -> list[Path]:
 
 
 def collect_wrist_invoices(invoices_root: Path) -> None:
-    """Copy Invoice_*.pdf whose 'Sold To' contains WRIST_KEYWORD into invoices_root/Wrist/."""
+    """Copy Invoice_*.pdf whose 'Sold To' contains WRIST_KEYWORD into invoices_root/Wrist/.
+
+    Only the dated "EXTRACT INVOICE <date>" folder(s) under ``invoices_root`` are
+    scanned (matched by ``EXTRACT_DIR_RE``), rather than the entire output tree.
+    The folder's own date is used as-is — nothing is compared against today.
+    """
     dest_dir = invoices_root / "Wrist"
+
+    extract_dirs = sorted(
+        d for d in invoices_root.iterdir()
+        if d.is_dir() and EXTRACT_DIR_RE.search(d.name)
+    )
+
+    if not extract_dirs:
+        print(
+            f"  no 'EXTRACT INVOICE <date>' folder found under {invoices_root}; "
+            "nothing scanned.",
+            file=sys.stderr,
+        )
+        return
+
     copied = scanned = 0
-    for pdf in sorted(invoices_root.rglob("Invoice_*.pdf")):
-        if dest_dir in pdf.parents:
-            continue
-        scanned += 1
-        with fitz.open(pdf) as doc:
-            text = doc[0].get_text("text")
-        m = SOLD_TO_RE.search(text)
-        if not m:
-            continue
-        sold_to = m.group(1).strip()
-        if WRIST_KEYWORD in sold_to.lower():
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(pdf, dest_dir / pdf.name)
-            copied += 1
-            print(f"  {pdf.name}  ->  Wrist/   ({sold_to})")
+    for extract_dir in extract_dirs:
+        date_part = EXTRACT_DIR_RE.search(extract_dir.name).group(1).strip()
+        print(f"  scanning {extract_dir.name!r} (date: {date_part or 'unknown'})")
+        for pdf in sorted(extract_dir.rglob("Invoice_*.pdf")):
+            if dest_dir in pdf.parents:
+                continue
+            scanned += 1
+            with fitz.open(pdf) as doc:
+                text = doc[0].get_text("text")
+            m = SOLD_TO_RE.search(text)
+            if not m:
+                continue
+            sold_to = m.group(1).strip()
+            if WRIST_KEYWORD in sold_to.lower():
+                dest_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(pdf, dest_dir / pdf.name)
+                copied += 1
+                print(f"  {pdf.name}  ->  Wrist/   ({sold_to})")
+
     print(f"\n  Scanned {scanned} invoice(s), copied {copied} to {dest_dir}.")
 
 

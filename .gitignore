@@ -1,1 +1,8 @@
 output/
+
+# Data files — never commit invoice/DO documents or spreadsheets
+*.pdf
+*.xls
+*.xlsx
+*.xlsm
+*.csv
